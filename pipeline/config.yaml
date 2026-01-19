@@ -1,0 +1,26 @@
+paths:
+  europarl_en: data/nl-en/europarl-v7.nl-en.en
+  europarl_nl: data/nl-en/europarl-v7.nl-en.nl
+  train_en: data/train.en
+  train_nl: data/train.nl
+  val_en: data/val.en
+  val_nl: data/val.nl
+  flores_dir: data/flores/
+  challenge_excel: Dataset_Challenge_1.xlsx
+
+data:
+  max_len: 128
+  min_len: 3
+  total_size: 200000
+  val_size: 10000
+  seed: 42
+
+training:
+  model_name: Helsinki-NLP/opus-mt-en-nl
+  batch_size: 16
+  lr: 2e-5
+  epochs: 3
+
+evaluation:
+  num_beams: 4
+  use_masking: true
