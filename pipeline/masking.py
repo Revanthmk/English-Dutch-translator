@@ -1,7 +1,7 @@
 import re
 
-PLACEHOLDER_PATTERN = re.compile(r"\{\d+\}")
-SYMBOL_PATTERN = re.compile(r"[™®]")
+PLACEHOLDER = re.compile(r"\{\d+\}")
+SYMBOL = re.compile(r"[™®]")
 
 
 def add_mask_tokens(tokenizer, model, n=100):
@@ -11,22 +11,22 @@ def add_mask_tokens(tokenizer, model, n=100):
 
 
 def mask_text(text):
-    mappings = {}
-    counter = 0
+    mapping = {}
+    idx = 0
 
-    def repl(match):
-        nonlocal counter
-        key = f"<MASK{counter}>"
-        mappings[key] = match.group(0)
-        counter += 1
-        return key
+    def repl(m):
+        nonlocal idx
+        k = f"<MASK{idx}>"
+        mapping[k] = m.group(0)
+        idx += 1
+        return k
 
-    text = PLACEHOLDER_PATTERN.sub(repl, text)
-    text = SYMBOL_PATTERN.sub(repl, text)
-    return text, mappings
+    text = PLACEHOLDER.sub(repl, text)
+    text = SYMBOL.sub(repl, text)
+    return text, mapping
 
 
-def unmask_text(text, mappings):
-    for k, v in mappings.items():
+def unmask_text(text, mapping):
+    for k, v in mapping.items():
         text = text.replace(k, v)
     return text
