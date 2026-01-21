@@ -16,10 +16,16 @@ data:
   seed: 42
 
 training:
-  model_name: Helsinki-NLP/opus-mt-en-nl
+  model_type: decoder_only
   batch_size: 16
   lr: 2e-5
   epochs: 3
+
+peft:
+  use_lora: true
+  r: 8
+  alpha: 16
+  dropout: 0.05
 
 evaluation:
   num_beams: 4
