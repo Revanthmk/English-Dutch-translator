@@ -11,7 +11,7 @@ def load_parallel(en_path, nl_path):
     return list(zip(en, nl))
 
 
-def filter_pairs(pairs, max_len=128, min_len=3):
+def filter_pairs(pairs, max_len, min_len):
     out = []
     for en, nl in pairs:
         if not en.strip() or not nl.strip():
@@ -37,33 +37,23 @@ def save_pairs(pairs, out_en, out_nl):
 
 
 class TranslationDataset(Dataset):
-    def __init__(self, src_file, tgt_file, tokenizer, max_len):
-        self.src = Path(src_file).read_text(encoding="utf-8").splitlines()
-        self.tgt = Path(tgt_file).read_text(encoding="utf-8").splitlines()
-        self.tokenizer = tokenizer
+    def __init__(self, src, tgt, tokenizer, max_len):
+        self.src = Path(src).read_text(encoding="utf-8").splitlines()
+        self.tgt = Path(tgt).read_text(encoding="utf-8").splitlines()
+        self.tok = tokenizer
         self.max_len = max_len
 
     def __len__(self):
         return len(self.src)
 
-    def __getitem__(self, idx):
-        src = self.tokenizer(
-            self.src[idx],
-            truncation=True,
-            padding="max_length",
-            max_length=self.max_len,
-            return_tensors="pt",
-        )
-        tgt = self.tokenizer(
-            self.tgt[idx],
-            truncation=True,
-            padding="max_length",
-            max_length=self.max_len,
-            return_tensors="pt",
-        )
+    def __getitem__(self, i):
+        src = self.tok(self.src[i], truncation=True, padding="max_length",
+                       max_length=self.max_len, return_tensors="pt")
+        tgt = self.tok(self.tgt[i], truncation=True, padding="max_length",
+                       max_length=self.max_len, return_tensors="pt")
 
         labels = tgt["input_ids"]
-        labels[labels == self.tokenizer.pad_token_id] = -100
+        labels[labels == self.tok.pad_token_id] = -100
 
         return {
             "input_ids": src["input_ids"].squeeze(),
@@ -72,9 +62,43 @@ class TranslationDataset(Dataset):
         }
 
 
-def load_flores(flores_dir):
-    en = pd.read_parquet(f"{flores_dir}/eng_Latn.parquet")["text"].tolist()
-    nl = pd.read_parquet(f"{flores_dir}/nld_Latn.parquet")["text"].tolist()
+class DecoderOnlyTranslationDataset(Dataset):
+    def __init__(self, src, tgt, tokenizer, max_len):
+        self.src = Path(src).read_text(encoding="utf-8").splitlines()
+        self.tgt = Path(tgt).read_text(encoding="utf-8").splitlines()
+        self.tok = tokenizer
+        self.max_len = max_len
+
+    def __len__(self):
+        return len(self.src)
+
+    def __getitem__(self, i):
+        prompt = (
+            "Translate the following English software UI text into Dutch.\n\n"
+            "Rules:\n"
+            "- Preserve placeholders like {1}, {2}\n"
+            "- Preserve symbols and units\n"
+            "- Do not add or remove information\n\n"
+            f"English:\n{self.src[i]}\n\nDutch:\n"
+        )
+
+        full = prompt + self.tgt[i]
+        enc = self.tok(full, truncation=True, max_length=self.max_len, padding="max_length", return_tensors="pt")
+
+        labels = enc["input_ids"].clone()
+        prompt_len = len(self.tok(prompt)["input_ids"])
+        labels[:, :prompt_len] = -100
+
+        return {
+            "input_ids": enc["input_ids"].squeeze(),
+            "attention_mask": enc["attention_mask"].squeeze(),
+            "labels": labels.squeeze(),
+        }
+
+
+def load_flores(dir):
+    en = pd.read_parquet(f"{dir}/eng_Latn.parquet")["text"].tolist()
+    nl = pd.read_parquet(f"{dir}/nld_Latn.parquet")["text"].tolist()
     return en, nl
 
 
